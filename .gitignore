@@ -1,0 +1,12 @@
+*
+!.gitignore
+!.nojekyll
+!index.html
+!activities/
+!activities/**/
+!activities/**/*.html
+!lessons/
+!lessons/**/
+!lessons/**/*.html
+
+!lessons/**/*.pdf
