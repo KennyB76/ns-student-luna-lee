@@ -2,6 +2,14 @@
 !.gitignore
 !.nojekyll
 !index.html
+!games/
+!games/**/
+!games/**/*.html
+!games/**/*.js
+!games/**/*.css
+!games/**/*.png
+!games/**/*.jpg
+!games/**/*.svg
 !activities/
 !activities/**/
 !activities/**/*.html
