@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luna Lee — Contour Lines in 3D</title>
+<style>
+  :root { --rose: #c2185b; --wine: #880e4f; --ink: #2a1a22; --paper: #fff8f6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 18px/1.45 "Trebuchet MS", "Segoe UI", Arial, sans-serif; color: var(--ink); background: var(--paper); }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 18px 48px; }
+  h1 { font: 700 clamp(26px, 5vw, 34px)/1.15 Georgia, "Times New Roman", serif; color: var(--wine); margin: 0 0 8px; }
+  .lead { margin: 0 0 18px; max-width: 720px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #fff; border: 2px solid #f3c1d3; border-radius: 16px; padding: 12px 12px 16px; }
+  h2 { font-size: 18px; margin: 0 0 8px; color: var(--rose); }
+  canvas { width: 100%; height: auto; background: #fff; border-radius: 10px; touch-action: none; }
+  label.slider { display: block; margin: 14px 0 6px; font-weight: 700; }
+  input[type="range"] { width: 100%; accent-color: var(--rose); }
+  .readout { min-height: 3.2em; margin: 8px 0 0; }
+  .heights { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  button { font: inherit; border: 2px solid var(--rose); background: #fff; color: var(--wine); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--rose); color: #fff; }
+  .steps { margin: 18px 0 0; padding-left: 1.2em; }
+  .steps li { margin: 6px 0; }
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 28px; max-width: 11em; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Contour lines lift into a hill</h1>
+  <p class="lead">A contour line is one height all the way around. The flat map is those loops seen from above. Lift the loops, and the hill appears.</p>
+  <div class="grid">
+    <section class="card">
+      <h2>Flat map, seen from above</h2>
+      <canvas id="map" width="640" height="460"></canvas>
+    </section>
+    <section class="card">
+      <h2>The same lines, lifted</h2>
+      <canvas id="hill" width="640" height="460"></canvas>
+      <label class="slider" for="lift">Lift the lines</label>
+      <input id="lift" type="range" min="0" max="100" value="70">
+      <p class="readout" id="readout">Drag the slider. Higher lines rise.</p>
+      <div class="heights" id="heights"></div>
+    </section>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <h2>A cut through the hill</h2>
+    <canvas id="side" width="1000" height="280"></canvas>
+    <p class="readout">The left side climbs 200 feet in a short distance, so it is steep. The right side uses a longer distance for the same 200 feet, so it is gentler.</p>
+  </section>
+  <ol class="steps">
+    <li>Each button is one contour line. Every point on that line has the same elevation.</li>
+    <li>The orange path goes A 2,000, B 2,400, C 2,800, D 2,600, F 2,200. Up to C, then down.</li>
+    <li>A height such as 2,350 ft is not its own line. It sits between 2,200 ft and 2,400 ft.</li>
+  </ol>
+</main>
+<script>
+(function () {
+  var layers = [
+    { ft: 2000, cx: 280, cy: 230, rx: 210, ry: 130, fill: "#e8f5e9" },
+    { ft: 2200, cx: 250, cy: 230, rx: 168, ry: 104, fill: "#c8e6c9" },
+    { ft: 2400, cx: 228, cy: 230, rx: 128, ry: 80, fill: "#a5d6a7" },
+    { ft: 2600, cx: 210, cy: 230, rx: 90, ry: 56, fill: "#81c784" },
+    { ft: 2800, cx: 196, cy: 230, rx: 52, ry: 32, fill: "#66bb6a" }
+  ];
+  var points = [
+    { name: "A", ft: 2000, x: 400.5, y: 336.5 },
+    { name: "B", ft: 2400, x: 341, y: 267.6 },
+    { name: "C", ft: 2800, x: 243.1, y: 216.5 },
+    { name: "D", ft: 2600, x: 186.7, y: 284.1 },
+    { name: "F", ft: 2200, x: 87.7, y: 203.1 }
+  ];
+  var selected = 2800;
+  var map = document.getElementById("map");
+  var hill = document.getElementById("hill");
+  var side = document.getElementById("side");
+  var lift = document.getElementById("lift");
+  var readout = document.getElementById("readout");
+  var heights = document.getElementById("heights");
+
+  layers.forEach(function (layer) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.dataset.ft = String(layer.ft);
+    button.textContent = layer.ft.toLocaleString() + " ft";
+    button.setAttribute("aria-pressed", layer.ft === selected ? "true" : "false");
+    button.addEventListener("click", function () {
+      selected = layer.ft;
+      draw();
+    });
+    heights.appendChild(button);
+  });
+
+  function hitLayer(x, y) {
+    var found = null;
+    layers.forEach(function (layer) {
+      var nx = (x - layer.cx) / layer.rx;
+      var ny = (y - layer.cy) / layer.ry;
+      if (nx * nx + ny * ny <= 1) found = layer.ft;
+    });
+    return found;
+  }
+
+  map.addEventListener("click", function (event) {
+    var rect = map.getBoundingClientRect();
+    var x = (event.clientX - rect.left) * map.width / rect.width;
+    var y = (event.clientY - rect.top) * map.height / rect.height;
+    var ft = hitLayer(x, y);
+    if (ft) { selected = ft; draw(); }
+  });
+
+  function ellipse(ctx, layer, liftPx) {
+    ctx.beginPath();
+    ctx.ellipse(layer.cx, layer.cy - liftPx, layer.rx, layer.ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = layer.fill;
+    ctx.fill();
+    ctx.lineWidth = layer.ft === selected ? 4 : 2;
+    ctx.strokeStyle = layer.ft === selected ? "#c2185b" : "#1b5e20";
+    ctx.stroke();
+  }
+
+  function drawMap(ctx) {
+    ctx.clearRect(0, 0, map.width, map.height);
+    layers.forEach(function (layer) { ellipse(ctx, layer, 0); });
+    ctx.strokeStyle = "#e65100";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    points.forEach(function (point, index) {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+    ctx.font = "700 16px Trebuchet MS, Segoe UI, sans-serif";
+    ctx.fillStyle = "#1b3a2f";
+    ctx.textAlign = "center";
+    ctx.font = "700 15px Trebuchet MS, Segoe UI, sans-serif";
+    ctx.fillText("Outside to inside", 320, 24);
+    ctx.fillText("2,000 · 2,200 · 2,400 · 2,600 · 2,800 ft", 320, 44);
+    ctx.fillStyle = "#880e4f";
+    points.forEach(function (point) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#880e4f";
+      ctx.stroke();
+      ctx.fillStyle = "#880e4f";
+      ctx.textAlign = "left";
+      ctx.fillText(point.name, point.x + 8, point.y - 8);
+    });
+  }
+
+  function drawHill(ctx) {
+    var amount = Number(lift.value) / 100;
+    ctx.clearRect(0, 0, hill.width, hill.height);
+    ctx.fillStyle = "#f7fbf7";
+    ctx.fillRect(0, 0, hill.width, hill.height);
+    layers.forEach(function (layer) {
+      var rise = (layer.ft - 2000) / 800 * 150 * amount;
+      if (amount > 0.05) {
+        ctx.strokeStyle = "rgba(27,94,32,0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(layer.cx - layer.rx, layer.cy);
+        ctx.lineTo(layer.cx - layer.rx, layer.cy - rise);
+        ctx.stroke();
+      }
+      ellipse(ctx, layer, rise);
+      if (layer.ft === selected) {
+        ctx.fillStyle = "#880e4f";
+        ctx.font = "700 16px Trebuchet MS, Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(layer.ft.toLocaleString() + " ft", layer.cx, layer.cy - rise - layer.ry - 10);
+      }
+    });
+  }
+
+  function drawSide(ctx) {
+    ctx.clearRect(0, 0, side.width, side.height);
+    var left = layers.map(function (layer) { return { x: layer.cx - layer.rx, ft: layer.ft }; });
+    var right = layers.slice().reverse().map(function (layer) { return { x: layer.cx + layer.rx, ft: layer.ft }; });
+    var samples = left.concat(right);
+    var minX = 70, maxX = 490;
+    function px(x) { return 70 + (x - minX) / (maxX - minX) * 860; }
+    function py(ft) { return 230 - (ft - 2000) / 800 * 160; }
+    ctx.beginPath();
+    ctx.moveTo(px(samples[0].x), 240);
+    samples.forEach(function (sample) { ctx.lineTo(px(sample.x), py(sample.ft)); });
+    ctx.lineTo(px(samples[samples.length - 1].x), 240);
+    ctx.closePath();
+    ctx.fillStyle = "#c8e6c9";
+    ctx.fill();
+    ctx.strokeStyle = "#1b5e20";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = "#880e4f";
+    ctx.font = "700 16px Trebuchet MS, Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    layers.forEach(function (layer) {
+      if (layer.ft === selected) {
+        ctx.strokeStyle = "#c2185b";
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(70, py(layer.ft));
+        ctx.lineTo(930, py(layer.ft));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+    ctx.fillStyle = "#1b3a2f";
+    ctx.fillText("steeper", 180, 260);
+    ctx.fillText("gentler", 760, 260);
+    ctx.fillText(selected.toLocaleString() + " ft", 500, py(selected) - 8);
+  }
+
+  function draw() {
+    drawMap(map.getContext("2d"));
+    drawHill(hill.getContext("2d"));
+    drawSide(side.getContext("2d"));
+    var amount = Number(lift.value);
+    readout.textContent = amount === 0
+      ? "The lines are flat. This is the map you see on the worksheet."
+      : "The " + selected.toLocaleString() + " ft line is one level slice. Every point on it is " + selected.toLocaleString() + " ft high.";
+    Array.prototype.forEach.call(heights.children, function (button) {
+      button.setAttribute("aria-pressed", button.dataset.ft === String(selected) ? "true" : "false");
+    });
+  }
+
+  lift.addEventListener("input", draw);
+  draw();
+})();
+</script>
+</body>
+</html>
