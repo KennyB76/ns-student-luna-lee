@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Round Each Addend, Then Add</title>
+<style>
+  :root {
+    --primary: #c2185b;
+    --primary-dark: #880e4f;
+    --accent: #7b1fa2;
+    --good: #2e7d32;
+    --good-bg: #e8f5e9;
+    --warn: #d84315;
+    --warn-bg: #fbe9e7;
+    --ink: #222;
+    --muted: #555;
+    --rule: #ccc;
+    --paper: #fff;
+    --bg: #fdf4f8;
+    --soft: #fce4ec;
+    --focus: #1565c0;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Trebuchet MS', 'Segoe UI', Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 16px 16px 48px; }
+  header.top { border-bottom: 3px solid var(--primary); padding-bottom: 10px; margin-bottom: 14px; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; color: var(--primary-dark); font-size: 1.7rem; margin: 6px 0 4px; }
+  .sub { color: var(--muted); margin: 0; }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; color: var(--primary-dark); }
+  h3 { font-size: 1.05rem; margin: 0; }
+  details.how { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; }
+  details.how summary { cursor: pointer; font-weight: bold; color: var(--accent); }
+  details.how ol { margin: 8px 0 4px; padding-left: 22px; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 14px;
+  }
+  .controls label { display: flex; flex-direction: column; font-size: .9rem; color: var(--muted); gap: 4px; }
+  select, input[type=text], button { font: inherit; }
+  select { padding: 7px 8px; border: 1px solid #999; border-radius: 6px; background: #fff; min-width: 170px; }
+  .controls .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--primary);
+    background: var(--primary); color: #fff; cursor: pointer; min-height: 40px;
+  }
+  button.ghost { background: #fff; color: var(--primary); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .problem-banner {
+    background: var(--paper); border: 2px solid var(--primary); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 14px;
+  }
+  .story { color: var(--muted); margin: 0 0 4px; font-size: .95rem; }
+  .bigq { font-size: 1.5rem; font-weight: bold; margin: 0; }
+  .bigq .place-tag { font-size: .95rem; font-weight: normal; color: var(--accent); display: block; }
+  .addend {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 14px;
+  }
+  .addend.done { border-color: var(--good); }
+  .addend-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .addend-head .num { font-size: 1.3rem; font-weight: bold; color: var(--primary-dark); }
+  .result-pill { font-weight: bold; color: var(--good); }
+  .nl-wrap { width: 100%; overflow: hidden; }
+  svg.nl { display: block; width: 100%; height: auto; touch-action: none; user-select: none; }
+  .step { border-top: 1px dashed var(--rule); padding: 10px 0 4px; }
+  .step.locked { opacity: .45; }
+  .step.locked * { pointer-events: none; }
+  .step-title { font-weight: bold; margin: 0 0 6px; }
+  .step-title .tag { display: inline-block; background: var(--soft); color: var(--primary-dark); border-radius: 999px; padding: 0 9px; margin-right: 6px; font-size: .85rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .row label { display: flex; flex-direction: column; font-size: .9rem; color: var(--muted); gap: 3px; }
+  input[type=text] { width: 9.5em; padding: 7px 9px; border: 1px solid #999; border-radius: 6px; font-size: 1.05rem; }
+  input.bad { border-color: var(--warn); background: var(--warn-bg); }
+  input.ok { border-color: var(--good); background: var(--good-bg); }
+  .slider-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .slider-row input[type=range] { flex: 1 1 120px; min-width: 100px; accent-color: var(--primary); height: 32px; }
+  @media (max-width: 560px) { .slider-row .readout { flex: 1 1 auto; } }
+  .readout { font-weight: bold; min-width: 9em; }
+  .stepbtn { min-width: 44px; padding: 8px 10px; }
+  .unit-note { font-size: .88rem; color: var(--muted); margin: 4px 0 0; }
+  .choice { display: flex; gap: 10px; flex-wrap: wrap; }
+  .choice button { background: #fff; color: var(--ink); border-color: #999; min-width: 120px; }
+  .choice button.picked-ok { border-color: var(--good); background: var(--good-bg); color: var(--good); font-weight: bold; }
+  .fb { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; font-size: .95rem; display: none; }
+  .fb.show { display: block; }
+  .fb.good { background: var(--good-bg); color: #1b5e20; border-left: 4px solid var(--good); }
+  .fb.bad { background: var(--warn-bg); color: #8a2a0c; border-left: 4px solid var(--warn); }
+  .fb strong { margin-right: 4px; }
+  .sum-card { background: var(--paper); border: 2px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; }
+  .sum-card.locked { opacity: .5; }
+  .sum-card.locked * { pointer-events: none; }
+  .sum-eq { font-size: 1.25rem; margin: 6px 0 10px; }
+  .score { color: var(--muted); font-size: .9rem; }
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    h1 { font-size: 1.35rem; }
+    .bigq { font-size: 1.25rem; }
+    select { min-width: 0; width: 100%; }
+    .controls label { flex: 1 1 140px; }
+    input[type=text] { width: 8.2em; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .fb.show { animation: pop .18s ease-out; }
+    @keyframes pop { from { transform: translateY(-3px); opacity: .3; } to { transform: none; opacity: 1; } }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Round Each Addend, Then Add</h1>
+    <p class="sub">Estimate a sum: round each number first, then add the rounded numbers.</p>
+  </header>
+
+  <details class="how" open>
+    <summary>How it works</summary>
+    <ol>
+      <li><b>Endpoints.</b> Find the two neighboring multiples of the rounding place. The number sits between them.</li>
+      <li><b>Midpoint.</b> Find the number exactly halfway between the endpoints.</li>
+      <li><b>Plot.</b> Move the marker to show where the number is on the number line.</li>
+      <li><b>Round.</b> Choose the closer endpoint. If the number is <em>exactly</em> on the midpoint, round <b>up</b> to the higher endpoint.</li>
+      <li><b>Estimate.</b> Add the two rounded numbers.</li>
+    </ol>
+  </details>
+
+  <section class="controls" aria-label="Problem controls">
+    <label>Round to the nearest
+      <select id="placeSel">
+        <option value="100">hundred (100)</option>
+        <option value="1000">thousand (1,000)</option>
+        <option value="10000">ten thousand (10,000)</option>
+      </select>
+    </label>
+    <label>Problem
+      <select id="probSel"></select>
+    </label>
+    <div class="btns">
+      <button type="button" class="ghost" id="resetBtn">Reset problem</button>
+      <button type="button" id="nextBtn">Next problem</button>
+    </div>
+    <span class="score" id="score" aria-live="polite"></span>
+  </section>
+
+  <section class="problem-banner" aria-live="polite">
+    <p class="story" id="story"></p>
+    <p class="bigq" id="bigq"></p>
+  </section>
+
+  <div id="addends"></div>
+
+  <section class="sum-card locked" id="sumCard" aria-label="Estimate the sum">
+    <h2>Step 5: Add the rounded numbers</h2>
+    <p class="sum-eq" id="sumEq"></p>
+    <div class="row">
+      <label for="sumIn">Estimated sum
+        <input type="text" id="sumIn" inputmode="numeric" autocomplete="off">
+      </label>
+      <button type="button" id="sumBtn">Check</button>
+    </div>
+    <p class="fb" id="sumFb" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<template id="addendTpl">
+  <section class="addend">
+    <div class="addend-head">
+      <h3><span class="which"></span>: <span class="num"></span></h3>
+      <span class="result-pill"></span>
+    </div>
+    <div class="nl-wrap"><svg class="nl" role="img"></svg></div>
+
+    <div class="step" data-step="ends">
+      <p class="step-title"><span class="tag">Step 1</span>Which two <span class="pname"></span> is it between?</p>
+      <div class="row">
+        <label>Lower endpoint <input type="text" class="loIn" inputmode="numeric" autocomplete="off"></label>
+        <label>Upper endpoint <input type="text" class="hiIn" inputmode="numeric" autocomplete="off"></label>
+        <button type="button" class="endsBtn">Check</button>
+      </div>
+      <p class="fb" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="step locked" data-step="mid">
+      <p class="step-title"><span class="tag">Step 2</span>What number is exactly halfway?</p>
+      <div class="row">
+        <label>Midpoint <input type="text" class="midIn" inputmode="numeric" autocomplete="off"></label>
+        <button type="button" class="midBtn">Check</button>
+      </div>
+      <p class="fb" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="step locked" data-step="plot">
+      <p class="step-title"><span class="tag">Step 3</span>Move the marker to plot <span class="numText"></span>.</p>
+      <div class="slider-row">
+        <button type="button" class="ghost stepbtn minusBtn" aria-label="Move marker left one step">&minus;</button>
+        <input type="range" class="slider">
+        <button type="button" class="ghost stepbtn plusBtn" aria-label="Move marker right one step">+</button>
+        <span class="readout" aria-live="polite"></span>
+        <button type="button" class="plotBtn">Plot it</button>
+      </div>
+      <p class="unit-note"></p>
+      <p class="fb" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="step locked" data-step="choose">
+      <p class="step-title"><span class="tag">Step 4</span>Which endpoint is <span class="numText"></span> closer to?</p>
+      <div class="choice">
+        <button type="button" class="pickLo"></button>
+        <button type="button" class="pickHi"></button>
+      </div>
+      <p class="fb" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+</template>
+
+<script>
+(function () {
+  'use strict';
+
+  // Fresh problem bank. Ties (exactly on the midpoint) and boundary cases are marked in comments.
+  var BANK = {
+    100: [
+      { a: 350,  b: 128,  story: 'Dolphins at the bay: 350 in the morning and 128 in the afternoon.' },   // tie 350
+      { a: 349,  b: 451,  story: 'Seashells collected on two beach walks.' },                              // boundary 349 / 451
+      { a: 2680, b: 1349, story: 'Starfish counted in two tide pools.' },
+      { a: 4965, b: 238,  story: 'Fish in the big tank plus a new delivery.' },                            // 4965 is between slider steps
+      { a: 1250, b: 3749, story: 'Visitors at the aquarium on Saturday and Sunday.' },                     // tie 1250, boundary 3749
+      { a: 607,  b: 893,  story: 'Miles a sea turtle swam in two weeks.' },
+      { a: 9951, b: 4450, story: 'Stars counted on two clear nights.' }                                    // 9951 rounds to 10,000; tie 4450
+    ],
+    1000: [
+      { a: 2680,  b: 4500,  story: 'Gallons of water in two aquarium tanks.' },                           // 2680 between steps; tie 4500
+      { a: 3499,  b: 6501,  story: 'Shells sorted by two classes.' },                                      // boundary 3499 / 6501
+      { a: 12450, b: 7820,  story: 'People at the ocean festival on two days.' },
+      { a: 5500,  b: 1050,  story: 'Jellyfish seen by two research boats.' },                              // tie 5500
+      { a: 8960,  b: 2345,  story: 'Feet two whales dove in one week.' },
+      { a: 14099, b: 25500, story: 'Tickets sold for the planetarium show.' },                             // tie 25,500
+      { a: 39601, b: 6449,  story: 'Sea stars counted along two coastlines.' }                             // 39,601 rounds up into 40,000
+    ],
+    10000: [
+      { a: 25000,  b: 42180, story: 'Visitors to two beach parks this summer.' },                          // tie 25,000
+      { a: 34999,  b: 15001, story: 'Miles flown by two migrating birds.' },                               // boundary 34,999 / 15,001
+      { a: 67350,  b: 21840, story: 'Fish counted on two coral reefs.' },
+      { a: 45000,  b: 54999, story: 'Stars in two small star clusters.' },                                 // tie 45,000; boundary 54,999
+      { a: 128600, b: 31250, story: 'Gallons in the shark tank and the dolphin pool.' },
+      { a: 96520,  b: 8730,  story: 'Shells in a museum drawer and a gift shop.' },                        // 96,520 rounds to 100,000; 8,730 lower endpoint 0
+      { a: 73480,  b: 14960, story: 'People who watched two meteor showers.' }
+    ]
+  };
+  var PLACE_NAME = { 100: 'hundred', 1000: 'thousand', 10000: 'ten thousand' };
+  var ZEROS = { 100: 'two zeros (00)', 1000: 'three zeros (000)', 10000: 'four zeros (0000)' };
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var fmt = function (n) { return Number(n).toLocaleString('en-US'); };
+  function parseNum(str) {
+    var t = String(str || '').replace(/[,\s]/g, '');
+    if (!/^\d+$/.test(t)) return null;
+    return parseInt(t, 10);
+  }
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  var state = { place: 100, idx: 0, addends: [], sumDone: false };
+  var solved = {};
+
+  var placeSel = $('#placeSel'), probSel = $('#probSel');
+
+  function fillProblemList() {
+    probSel.innerHTML = '';
+    BANK[state.place].forEach(function (p, i) {
+      var o = document.createElement('option');
+      o.value = i;
+      o.textContent = (i + 1) + '.  ' + fmt(p.a) + ' + ' + fmt(p.b) + (solved[state.place + ':' + i] ? '  (done)' : '');
+      probSel.appendChild(o);
+    });
+    probSel.value = state.idx;
+  }
+
+  function updateScore() {
+    var n = Object.keys(solved).length;
+    $('#score').textContent = 'Solved: ' + n + ' of 21';
+  }
+
+  function loadProblem() {
+    var P = state.place, p = BANK[P][state.idx];
+    state.sumDone = false;
+    $('#story').textContent = p.story;
+    var bq = $('#bigq');
+    bq.textContent = '';
+    var tag = document.createElement('span');
+    tag.className = 'place-tag';
+    tag.textContent = 'Round each number to the nearest ' + PLACE_NAME[P] + ', then add.';
+    bq.appendChild(tag);
+    bq.appendChild(document.createTextNode('Estimate:  ' + fmt(p.a) + ' + ' + fmt(p.b)));
+
+    var host = $('#addends');
+    host.innerHTML = '';
+    state.addends = [p.a, p.b].map(function (n, i) { return makeAddend(n, i, host); });
+
+    var sc = $('#sumCard');
+    sc.classList.add('locked');
+    $('#sumIn').value = '';
+    $('#sumIn').className = '';
+    $('#sumIn').disabled = true;
+    $('#sumBtn').disabled = true;
+    hideFb($('#sumFb'));
+    renderSumEq();
+  }
+
+  function makeAddend(n, i, host) {
+    var P = state.place, s = P / 10;
+    var node = $('#addendTpl').content.firstElementChild.cloneNode(true);
+    host.appendChild(node);
+    var A = {
+      n: n, P: P, s: s, node: node,
+      lo: Math.floor(n / P) * P, hi: Math.floor(n / P) * P + P,
+      stage: 'ends', loOk: false, hiOk: false, midOk: false, plotted: false, rounded: null,
+      slider: Math.floor(n / P) * P
+    };
+    A.mid = A.lo + P / 2;
+    $('.which', node).textContent = i === 0 ? 'First addend' : 'Second addend';
+    $('.num', node).textContent = fmt(n);
+    $('.pname', node).textContent = 'multiples of ' + fmt(P) + ' (nearest ' + PLACE_NAME[P] + ')';
+    node.querySelectorAll('.numText').forEach(function (e) { e.textContent = fmt(n); });
+    var svg = $('svg.nl', node);
+    svg.setAttribute('aria-label', 'Number line for ' + fmt(n));
+
+    var slider = $('.slider', node);
+    slider.min = A.lo; slider.max = A.hi; slider.step = s; slider.value = A.lo;
+    slider.setAttribute('aria-label', 'Marker position for ' + fmt(n));
+    slider.disabled = true;
+    $('.unit-note', node).textContent = 'Each tick (and each slider step) is ' + fmt(s) +
+      ', one place to the right of the ' + PLACE_NAME[P] + 's place.';
+
+    // Step 1: endpoints
+    var loIn = $('.loIn', node), hiIn = $('.hiIn', node);
+    var endsFb = $('[data-step=ends] .fb', node);
+    function checkEnds() {
+      var lo = parseNum(loIn.value), hi = parseNum(hiIn.value);
+      var msgs = [];
+      var loGood = lo === A.lo, hiGood = hi === A.hi;
+      loIn.className = 'loIn ' + (loGood ? 'ok' : 'bad');
+      hiIn.className = 'hiIn ' + (hiGood ? 'ok' : 'bad');
+      if (lo === null || hi === null) {
+        msgs.push('Type a whole number in both boxes.');
+      } else {
+        if (!loGood) msgs.push(endHint('lower', lo, A));
+        if (!hiGood) msgs.push(endHint('upper', hi, A));
+        if (!loGood && !hiGood && lo % P === 0 && hi % P === 0 && hi - lo !== P)
+          msgs.push('Neighboring endpoints are exactly ' + fmt(P) + ' apart.');
+      }
+      if (loGood && hiGood) {
+        showFb(endsFb, true, fmt(n) + ' is between ' + fmt(A.lo) + ' and ' + fmt(A.hi) + '.');
+        loIn.disabled = hiIn.disabled = true;
+        $('.endsBtn', node).disabled = true;
+        A.loOk = A.hiOk = true;
+        unlock(A, 'mid');
+      } else {
+        showFb(endsFb, false, msgs.join(' '));
+      }
+      draw(A);
+    }
+    $('.endsBtn', node).addEventListener('click', checkEnds);
+    [loIn, hiIn].forEach(function (inp) { inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkEnds(); } }); });
+
+    // Step 2: midpoint
+    var midIn = $('.midIn', node), midFb = $('[data-step=mid] .fb', node);
+    function checkMid() {
+      var m = parseNum(midIn.value);
+      if (m === A.mid) {
+        midIn.className = 'midIn ok';
+        midIn.disabled = true;
+        $('.midBtn', node).disabled = true;
+        A.midOk = true;
+        showFb(midFb, true, 'Halfway between ' + fmt(A.lo) + ' and ' + fmt(A.hi) + ' is ' + fmt(A.mid) + '.');
+        unlock(A, 'plot');
+        slider.disabled = false;
+        draw(A);
+        return;
+      }
+      midIn.className = 'midIn bad';
+      var msg;
+      if (m === null) msg = 'Type a whole number.';
+      else if (m <= A.lo || m >= A.hi) msg = 'The midpoint must be between ' + fmt(A.lo) + ' and ' + fmt(A.hi) + '.';
+      else if (m === n) msg = 'That is the number itself. The midpoint is halfway between the two endpoints.';
+      else msg = 'Not quite. Half of ' + fmt(P) + ' is ' + fmt(P / 2) + '. Start at ' + fmt(A.lo) + ' and add ' + fmt(P / 2) + '.';
+      showFb(midFb, false, msg);
+    }
+    $('.midBtn', node).addEventListener('click', checkMid);
+    midIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkMid(); } });
+
+    // Step 3: plot
+    var plotFb = $('[data-step=plot] .fb', node);
+    function setSlider(v) {
+      v = Math.max(A.lo, Math.min(A.hi, Math.round((v - A.lo) / s) * s + A.lo));
+      A.slider = v;
+      slider.value = v;
+      $('.readout', node).textContent = 'Marker: ' + fmt(v);
+      draw(A);
+    }
+    A.setSlider = setSlider;
+    slider.addEventListener('input', function () { if (!A.plotted) setSlider(+slider.value); });
+    $('.minusBtn', node).addEventListener('click', function () { if (!A.plotted && A.midOk) setSlider(A.slider - s); });
+    $('.plusBtn', node).addEventListener('click', function () { if (!A.plotted && A.midOk) setSlider(A.slider + s); });
+    $('.plotBtn', node).addEventListener('click', function () {
+      var below = Math.floor(n / s) * s, above = Math.ceil(n / s) * s;
+      var v = A.slider;
+      if (v === below || v === above) {
+        A.plotted = true;
+        slider.disabled = true;
+        $('.plotBtn', node).disabled = true;
+        $('.minusBtn', node).disabled = $('.plusBtn', node).disabled = true;
+        var where = below === above
+          ? fmt(n) + ' is right on the ' + fmt(v) + ' tick.'
+          : fmt(n) + ' is between the ' + fmt(below) + ' and ' + fmt(above) + ' ticks. The pink dot shows exactly where it is.';
+        showFb(plotFb, true, where);
+        unlock(A, 'choose');
+      } else if (v < n) {
+        showFb(plotFb, false, 'Your marker is at ' + fmt(v) + '. ' + fmt(n) + ' is greater, so move the marker to the right.');
+      } else {
+        showFb(plotFb, false, 'Your marker is at ' + fmt(v) + '. ' + fmt(n) + ' is less, so move the marker to the left.');
+      }
+      draw(A);
+    });
+
+    // Pointer on the number line moves the marker (mobile friendly).
+    function pointerToValue(ev) {
+      var r = svg.getBoundingClientRect();
+      var x = ev.clientX - r.left;
+      var g = A.geom;
+      if (!g) return null;
+      return A.lo + ((x - g.x0) / (g.x1 - g.x0)) * P;
+    }
+    var dragging = false;
+    svg.addEventListener('pointerdown', function (ev) {
+      if (!A.midOk || A.plotted) return;
+      dragging = true;
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+      var v = pointerToValue(ev); if (v != null) setSlider(v);
+    });
+    svg.addEventListener('pointermove', function (ev) {
+      if (!dragging) return;
+      var v = pointerToValue(ev); if (v != null) setSlider(v);
+    });
+    svg.addEventListener('pointerup', function () { dragging = false; });
+    svg.addEventListener('pointercancel', function () { dragging = false; });
+
+    // Step 4: choose nearest endpoint
+    var chooseFb = $('[data-step=choose] .fb', node);
+    var pickLo = $('.pickLo', node), pickHi = $('.pickHi', node);
+    pickLo.textContent = fmt(A.lo);
+    pickHi.textContent = fmt(A.hi);
+    function choose(isHi) {
+      var correctHi = n >= A.mid;
+      if (isHi === correctHi) {
+        A.rounded = correctHi ? A.hi : A.lo;
+        (isHi ? pickHi : pickLo).classList.add('picked-ok');
+        pickLo.disabled = pickHi.disabled = true;
+        var why;
+        if (n === A.mid) why = fmt(n) + ' is exactly on the midpoint, so we round up to ' + fmt(A.hi) + '.';
+        else if (n > A.mid) why = fmt(n) + ' is past the midpoint ' + fmt(A.mid) + ', so it is closer to ' + fmt(A.hi) + '.';
+        else why = fmt(n) + ' is before the midpoint ' + fmt(A.mid) + ', so it is closer to ' + fmt(A.lo) + '.';
+        showFb(chooseFb, true, why + '  ' + fmt(n) + ' rounds to ' + fmt(A.rounded) + '.');
+        $('.result-pill', node).textContent = fmt(n) + ' ≈ ' + fmt(A.rounded);
+        node.classList.add('done');
+        A.stage = 'done';
+        draw(A);
+        renderSumEq();
+        maybeUnlockSum();
+      } else {
+        var msg;
+        if (n === A.mid) msg = fmt(n) + ' is exactly halfway. Our rule: when a number is exactly on the midpoint, round up to the higher endpoint.';
+        else if (n < A.mid) msg = fmt(n) + ' is less than the midpoint ' + fmt(A.mid) + '. Look at the dot: is it on the left half or the right half?';
+        else msg = fmt(n) + ' is greater than the midpoint ' + fmt(A.mid) + '. Look at the dot: is it on the left half or the right half?';
+        showFb(chooseFb, false, msg);
+      }
+    }
+    pickLo.addEventListener('click', function () { choose(false); });
+    pickHi.addEventListener('click', function () { choose(true); });
+
+    setSlider(A.lo);
+    $('.readout', node).textContent = 'Marker: ' + fmt(A.lo);
+    return A;
+  }
+
+  function endHint(which, v, A) {
+    var P = A.P, n = A.n;
+    if (v % P !== 0) return 'The ' + which + ' endpoint should be a multiple of ' + fmt(P) + ' (it ends in ' + ZEROS[P] + ').';
+    if (which === 'lower') {
+      if (v > n) return fmt(v) + ' is greater than ' + fmt(n) + '. The lower endpoint must be less than ' + fmt(n) + '.';
+      return fmt(v) + ' is less than ' + fmt(n) + ', but there is a closer multiple of ' + fmt(P) + ' below ' + fmt(n) + '.';
+    }
+    if (v < n) return fmt(v) + ' is less than ' + fmt(n) + '. The upper endpoint must be greater than ' + fmt(n) + '.';
+    return fmt(v) + ' is greater than ' + fmt(n) + ', but there is a closer multiple of ' + fmt(P) + ' above ' + fmt(n) + '.';
+  }
+
+  function unlock(A, stage) {
+    A.stage = stage;
+    var st = A.node.querySelector('[data-step=' + stage + ']');
+    st.classList.remove('locked');
+    var f = st.querySelector('input:not([type=range]), input[type=range], button');
+    if (f && !f.disabled) f.focus({ preventScroll: false });
+  }
+
+  function showFb(e, good, msg) {
+    e.className = 'fb show ' + (good ? 'good' : 'bad');
+    e.textContent = '';
+    var b = document.createElement('strong');
+    b.textContent = good ? 'Yes!' : 'Try again.';
+    e.appendChild(b);
+    e.appendChild(document.createTextNode(' ' + msg));
+  }
+  function hideFb(e) { e.className = 'fb'; e.textContent = ''; }
+
+  // Number line drawing, sized to the real container width so labels stay readable.
+  function draw(A) {
+    var svg = A.node.querySelector('svg.nl');
+    var W = Math.max(280, Math.round(A.node.querySelector('.nl-wrap').clientWidth || 600));
+    var H = 130;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var m = Math.min(46, Math.max(30, W * 0.06));
+    var x0 = m, x1 = W - m, y = 70;
+    A.geom = { x0: x0, x1: x1 };
+    var X = function (v) { return x0 + (v - A.lo) / A.P * (x1 - x0); };
+
+    // Halves shading after midpoint is known
+    if (A.midOk) {
+      svg.appendChild(el('rect', { x: x0, y: y - 14, width: (x1 - x0) / 2, height: 28, fill: '#e3f2fd', opacity: .7 }));
+      svg.appendChild(el('rect', { x: (x0 + x1) / 2, y: y - 14, width: (x1 - x0) / 2, height: 28, fill: '#fce4ec', opacity: .8 }));
+    }
+    svg.appendChild(el('line', { x1: x0 - 14, y1: y, x2: x1 + 14, y2: y, stroke: '#333', 'stroke-width': 2.5 }));
+    svg.appendChild(el('path', { d: 'M' + (x0 - 18) + ',' + y + ' l9,-6 v12 z', fill: '#333' }));
+    svg.appendChild(el('path', { d: 'M' + (x1 + 18) + ',' + y + ' l-9,-6 v12 z', fill: '#333' }));
+
+    var spacing = (x1 - x0) / 10;
+    var maxChars = fmt(A.hi).length;
+    var estW = maxChars * 7.2 + 8;
+    var showSet;
+    if (spacing >= estW) showSet = [1, 2, 3, 4, 6, 7, 8, 9];
+    else if (spacing * 2 >= estW) showSet = [2, 8];
+    else showSet = [];
+    var bigFont = W < 420 ? 13 : 15;
+    if (fmt(A.hi).length * (bigFont * 0.6) > (x1 - x0) / 2 - 10) bigFont = 12;
+
+    for (var k = 0; k <= 10; k++) {
+      var v = A.lo + k * A.s, x = X(v);
+      var major = (k === 0 || k === 5 || k === 10);
+      svg.appendChild(el('line', { x1: x, y1: y - (major ? 12 : 7), x2: x, y2: y + (major ? 12 : 7), stroke: '#333', 'stroke-width': major ? 2.5 : 1.5 }));
+      var label = null, weight = 'normal', size = 12, color = '#444';
+      if (k === 0 || k === 10) {
+        var ok = k === 0 ? A.loOk : A.hiOk;
+        label = ok ? fmt(v) : '?'; weight = 'bold'; size = bigFont; color = '#880e4f';
+      } else if (k === 5) {
+        if (A.loOk) { label = A.midOk ? fmt(v) : '?'; weight = 'bold'; size = bigFont; color = '#7b1fa2'; }
+      } else if (A.midOk && showSet.indexOf(k) >= 0) {
+        label = fmt(v);
+      }
+      if (label != null) {
+        svg.appendChild(el('text', { x: x, y: y + 32, 'text-anchor': 'middle', 'font-size': size, 'font-weight': weight, fill: color, 'font-family': 'Trebuchet MS, Segoe UI, Arial, sans-serif' }, label));
+      }
+    }
+    if (A.midOk) {
+      svg.appendChild(el('text', { x: (x0 + x1) / 2, y: y + 52, 'text-anchor': 'middle', 'font-size': 12, fill: '#7b1fa2', 'font-family': 'Trebuchet MS, Segoe UI, Arial, sans-serif' }, 'midpoint'));
+    }
+
+    // Movable marker (slider position)
+    if (A.midOk && !A.plotted) {
+      var sx = X(A.slider);
+      svg.appendChild(el('path', { d: 'M' + sx + ',' + (y - 6) + ' l-9,-16 h18 z', fill: '#c2185b', stroke: '#880e4f', 'stroke-width': 1 }));
+      var tx = Math.max(x0, Math.min(x1, sx));
+      svg.appendChild(el('text', { x: tx, y: y - 28, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 'bold', fill: '#880e4f', 'font-family': 'Trebuchet MS, Segoe UI, Arial, sans-serif' }, fmt(A.slider)));
+    }
+
+    // Exact value marker once plotted: stays at the true position even between slider steps
+    if (A.plotted) {
+      var nx = X(A.n);
+      if (A.slider !== A.n) {
+        var gx = X(A.slider);
+        svg.appendChild(el('path', { d: 'M' + gx + ',' + (y - 6) + ' l-7,-12 h14 z', fill: 'none', stroke: '#c2185b', 'stroke-width': 1.5, 'stroke-dasharray': '3 2' }));
+      }
+      if (A.rounded != null) {
+        var rx = X(A.rounded);
+        var mxp = (nx + rx) / 2;
+        svg.appendChild(el('path', { d: 'M' + nx + ',' + (y - 8) + ' Q' + mxp + ',' + (y - 48) + ' ' + rx + ',' + (y - 10), fill: 'none', stroke: '#2e7d32', 'stroke-width': 2.5, 'marker-end': '' }));
+        svg.appendChild(el('path', { d: 'M' + rx + ',' + (y - 9) + ' l' + (rx > nx ? '-9,-6' : '9,-6') + ' l' + (rx > nx ? '1,9' : '-1,9') + ' z', fill: '#2e7d32' }));
+        svg.appendChild(el('circle', { cx: rx, cy: y, r: 10, fill: 'none', stroke: '#2e7d32', 'stroke-width': 3 }));
+      }
+      svg.appendChild(el('circle', { cx: nx, cy: y, r: 7, fill: '#c2185b', stroke: '#fff', 'stroke-width': 2 }));
+      var lx = Math.max(x0 + 10, Math.min(x1 - 10, nx));
+      var ly = A.rounded != null ? 14 : y - 26;
+      svg.appendChild(el('text', { x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 'bold', fill: '#c2185b', 'font-family': 'Trebuchet MS, Segoe UI, Arial, sans-serif' }, fmt(A.n)));
+    }
+  }
+
+  function renderSumEq() {
+    var e = $('#sumEq');
+    var r = state.addends.map(function (A) { return A.rounded == null ? '?' : fmt(A.rounded); });
+    var p = BANK[state.place][state.idx];
+    e.textContent = fmt(p.a) + ' + ' + fmt(p.b) + '  ≈  ' + r[0] + ' + ' + r[1] + '  =  ?';
+  }
+
+  function maybeUnlockSum() {
+    if (!state.addends.every(function (A) { return A.rounded != null; })) return;
+    $('#sumCard').classList.remove('locked');
+    $('#sumIn').disabled = false;
+    $('#sumBtn').disabled = false;
+    $('#sumIn').focus();
+  }
+
+  function checkSum() {
+    if (state.sumDone) return;
+    var A = state.addends[0], B = state.addends[1];
+    var est = A.rounded + B.rounded;
+    var v = parseNum($('#sumIn').value);
+    var fb = $('#sumFb');
+    if (v === est) {
+      $('#sumIn').className = 'ok';
+      $('#sumIn').disabled = true;
+      $('#sumBtn').disabled = true;
+      state.sumDone = true;
+      $('#sumEq').textContent = fmt(A.n) + ' + ' + fmt(B.n) + '  ≈  ' + fmt(A.rounded) + ' + ' + fmt(B.rounded) + '  =  ' + fmt(est);
+      showFb(fb, true, 'The estimated sum is about ' + fmt(est) + '. Press "Next problem" for another one.');
+      solved[state.place + ':' + state.idx] = true;
+      updateScore();
+      var keep = state.idx; fillProblemList(); probSel.value = keep;
+      $('#nextBtn').focus();
+      return;
+    }
+    $('#sumIn').className = 'bad';
+    var msg;
+    if (v === null) msg = 'Type a whole number.';
+    else if (v === A.n + B.n) msg = 'You added the original numbers. For an estimate, add the rounded numbers: ' + fmt(A.rounded) + ' + ' + fmt(B.rounded) + '.';
+    else if (v === A.n + B.rounded || v === A.rounded + B.n) msg = 'Use the rounded number for both addends: ' + fmt(A.rounded) + ' + ' + fmt(B.rounded) + '.';
+    else msg = 'Check your adding. Line up the places: ' + fmt(A.rounded) + ' + ' + fmt(B.rounded) + '. Both numbers end in zeros, so add the front digits first.';
+    showFb(fb, false, msg);
+  }
+  $('#sumBtn').addEventListener('click', checkSum);
+  $('#sumIn').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkSum(); } });
+
+  placeSel.addEventListener('change', function () {
+    state.place = +placeSel.value; state.idx = 0;
+    fillProblemList(); loadProblem();
+  });
+  probSel.addEventListener('change', function () {
+    state.idx = +probSel.value; loadProblem();
+  });
+  $('#resetBtn').addEventListener('click', function () { loadProblem(); });
+  $('#nextBtn').addEventListener('click', function () {
+    state.idx = (state.idx + 1) % BANK[state.place].length;
+    fillProblemList(); loadProblem();
+  });
+
+  var rT;
+  window.addEventListener('resize', function () {
+    clearTimeout(rT);
+    rT = setTimeout(function () { state.addends.forEach(draw); }, 80);
+  });
+
+  // Test hook (read-only view of state) for automated checks
+  window.__roundAdd = { state: state, bank: BANK };
+
+  fillProblemList();
+  updateScore();
+  loadProblem();
+})();
+</script>
+</body>
+</html>
